@@ -28,6 +28,12 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 }));
 
+// Timeout étendu pour les opérations longues (import Excel massif)
+app.use((req, res, next) => {
+  res.setTimeout(300000); // 5 minutes
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

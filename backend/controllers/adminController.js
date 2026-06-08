@@ -138,25 +138,84 @@ const adminController = {
     console.log(`[Import] ${etudiants.length} étudiant(s) détecté(s) dans le fichier`);
     const rapport = { total: etudiants.length, crees: 0, mis_a_jour: 0, erreurs: 0, details: [], details_erreurs: [] };
 
-    for (const etud of etudiants) {
-      try {
-        const result = await upsertEtudiant(etud);
-        if (result.action === 'CREE') rapport.crees++;
-        else rapport.mis_a_jour++;
-        rapport.details.push(result);
-      } catch (err) {
-        console.error(`[Import] Erreur pour ${etud.matricule} :`, err.message);
-        rapport.erreurs++;
-        rapport.details_erreurs.push({
-          matricule: etud.matricule,
-          nom: `${etud.prenom} ${etud.nom}`,
-          raison: err.message,
-        });
-      }
-    }
+    // ── Traitement par batches ────────────────────────────────────────────────
+    try {
+      const BATCH_SIZE = 50;
+      const TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes — marge avant le timeout HTTP (5 min)
+      const debut = Date.now();
+      let partiel = false;
 
-    console.log(`[Import] Terminé — créés: ${rapport.crees}, MàJ: ${rapport.mis_a_jour}, erreurs: ${rapport.erreurs}`);
-    res.json(rapport);
+      // Découper en groupes de BATCH_SIZE
+      const batches = [];
+      for (let i = 0; i < etudiants.length; i += BATCH_SIZE) {
+        batches.push(etudiants.slice(i, i + BATCH_SIZE));
+      }
+      console.log(`[Import] ${batches.length} batch(s) de ${BATCH_SIZE} max à traiter`);
+
+      for (let i = 0; i < batches.length; i++) {
+        // Vérifier si on approche de la limite de 4 minutes
+        if (Date.now() - debut >= TIMEOUT_MS) {
+          partiel = true;
+          console.log(`[Import] Limite de 4 minutes atteinte après le batch ${i} — arrêt préventif`);
+          break;
+        }
+
+        const batch = batches[i];
+
+        // Traiter tout le batch en parallèle (Promise.all)
+        const resultats = await Promise.all(
+          batch.map(async (etud) => {
+            try {
+              return await upsertEtudiant(etud);
+            } catch (err) {
+              console.error(`[Import] Erreur pour ${etud.matricule} :`, err.message);
+              return {
+                _erreur: true,
+                matricule: etud.matricule,
+                nom: `${etud.prenom} ${etud.nom}`,
+                raison: err.message,
+              };
+            }
+          })
+        );
+
+        // Comptabiliser les résultats du batch
+        for (const r of resultats) {
+          if (r._erreur) {
+            rapport.erreurs++;
+            rapport.details_erreurs.push({ matricule: r.matricule, nom: r.nom, raison: r.raison });
+          } else if (r.action === 'CREE') {
+            rapport.crees++;
+            rapport.details.push(r);
+          } else {
+            rapport.mis_a_jour++;
+            rapport.details.push(r);
+          }
+        }
+
+        console.log(`[Import] Batch ${i + 1}/${batches.length} traité : ${batch.length} étudiants`);
+
+        // Pause entre batches pour ne pas saturer la base de données
+        await new Promise((r) => setTimeout(r, 100));
+      }
+
+      // Réponse partielle si timeout préventif déclenché
+      if (partiel) {
+        const traites = rapport.crees + rapport.mis_a_jour + rapport.erreurs;
+        rapport.partiel = true;
+        rapport.message = `Import partiel : ${traites}/${etudiants.length} étudiants traités (limite de 4 minutes atteinte — relancez l'import pour le reste)`;
+        console.log(`[Import] ${rapport.message}`);
+      } else {
+        console.log(`[Import] Terminé — créés: ${rapport.crees}, MàJ: ${rapport.mis_a_jour}, erreurs: ${rapport.erreurs}`);
+      }
+
+      res.json(rapport);
+
+    } catch (err) {
+      // Erreur inattendue pendant le traitement (DB down, OOM, etc.)
+      console.error('[Import] Erreur globale :', err.message, err.stack);
+      return res.status(500).json({ message: `Erreur lors de l'import : ${err.message}` });
+    }
   },
 
   async previewExcel(req, res) {
