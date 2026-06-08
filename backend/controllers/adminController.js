@@ -70,7 +70,7 @@ function lireExcel(buffer) {
 
 // ─── Upsert sécurisé ──────────────────────────────────────────────────────
 async function upsertEtudiant(etud) {
-  const hashPwd = await bcrypt.hash(String(etud.motDePasse), 10);
+  const hashPwd = await bcrypt.hash(String(etud.motDePasse), 8); // rounds 8 pour l'import massif
   const anneeInscription = new Date().toISOString().split('T')[0];
 
   // 1. Chercher par matricule
@@ -135,27 +135,43 @@ const adminController = {
       });
     }
 
-    console.log(`[Import] ${etudiants.length} étudiant(s) détecté(s) dans le fichier`);
-    const rapport = { total: etudiants.length, crees: 0, mis_a_jour: 0, erreurs: 0, details: [], details_erreurs: [] };
+    // ── Paramètres de pagination (tranche à traiter) ─────────────────────────
+    const offset = parseInt(req.body.offset) || 0;
+    const limit  = 500;
+    const tousLesEtudiants = etudiants; // alias lisible
+    const etudiantsATreater = tousLesEtudiants.slice(offset, offset + limit);
+
+    console.log(`[Import] ${tousLesEtudiants.length} étudiant(s) au total — tranche ${offset}→${offset + etudiantsATreater.length}`);
+
+    // Cas où l'offset dépasse le total (import déjà terminé)
+    if (etudiantsATreater.length === 0) {
+      return res.json({
+        total: tousLesEtudiants.length,
+        crees: 0, mis_a_jour: 0, erreurs: 0, details: [], details_erreurs: [],
+        offset,
+        nextOffset: offset + limit,
+        hasMore: false,
+      });
+    }
+
+    const rapport = { crees: 0, mis_a_jour: 0, erreurs: 0, details: [], details_erreurs: [] };
 
     // ── Traitement par batches ────────────────────────────────────────────────
     try {
-      const BATCH_SIZE = 50;
+      const BATCH_SIZE = 20;
       const TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes — marge avant le timeout HTTP (5 min)
       const debut = Date.now();
-      let partiel = false;
 
-      // Découper en groupes de BATCH_SIZE
+      // Découper la tranche en groupes de BATCH_SIZE
       const batches = [];
-      for (let i = 0; i < etudiants.length; i += BATCH_SIZE) {
-        batches.push(etudiants.slice(i, i + BATCH_SIZE));
+      for (let i = 0; i < etudiantsATreater.length; i += BATCH_SIZE) {
+        batches.push(etudiantsATreater.slice(i, i + BATCH_SIZE));
       }
       console.log(`[Import] ${batches.length} batch(s) de ${BATCH_SIZE} max à traiter`);
 
       for (let i = 0; i < batches.length; i++) {
         // Vérifier si on approche de la limite de 4 minutes
         if (Date.now() - debut >= TIMEOUT_MS) {
-          partiel = true;
           console.log(`[Import] Limite de 4 minutes atteinte après le batch ${i} — arrêt préventif`);
           break;
         }
@@ -196,20 +212,19 @@ const adminController = {
         console.log(`[Import] Batch ${i + 1}/${batches.length} traité : ${batch.length} étudiants`);
 
         // Pause entre batches pour ne pas saturer la base de données
-        await new Promise((r) => setTimeout(r, 100));
+        await new Promise((r) => setTimeout(r, 50));
       }
 
-      // Réponse partielle si timeout préventif déclenché
-      if (partiel) {
-        const traites = rapport.crees + rapport.mis_a_jour + rapport.erreurs;
-        rapport.partiel = true;
-        rapport.message = `Import partiel : ${traites}/${etudiants.length} étudiants traités (limite de 4 minutes atteinte — relancez l'import pour le reste)`;
-        console.log(`[Import] ${rapport.message}`);
-      } else {
-        console.log(`[Import] Terminé — créés: ${rapport.crees}, MàJ: ${rapport.mis_a_jour}, erreurs: ${rapport.erreurs}`);
-      }
+      const hasMore = offset + limit < tousLesEtudiants.length;
+      console.log(`[Import] Tranche terminée — créés: ${rapport.crees}, MàJ: ${rapport.mis_a_jour}, erreurs: ${rapport.erreurs}, hasMore: ${hasMore}`);
 
-      res.json(rapport);
+      res.json({
+        ...rapport,
+        total: tousLesEtudiants.length,  // total dans le fichier (inchangé entre tranches)
+        offset,
+        nextOffset: offset + limit,
+        hasMore,
+      });
 
     } catch (err) {
       // Erreur inattendue pendant le traitement (DB down, OOM, etc.)

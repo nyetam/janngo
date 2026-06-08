@@ -62,6 +62,7 @@ export default function ImportEtudiants() {
   const [rapport, setRapport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [erreur, setErreur] = useState(null);
+  const [progression, setProgression] = useState(null); // { traites, total }
   const inputRef = useRef(null);
 
   // ── Drag & Drop ──────────────────────────────────────────────────────────
@@ -102,22 +103,59 @@ export default function ImportEtudiants() {
     }
   };
 
-  // ── Import ───────────────────────────────────────────────────────────────
+  // ── Import par tranches progressives ────────────────────────────────────
   const lancerImport = async () => {
     setLoading(true);
     setErreur(null);
+
+    // Rapport cumulé sur toutes les tranches
+    const rapportCumule = {
+      total: apercu.total,
+      crees: 0,
+      mis_a_jour: 0,
+      erreurs: 0,
+      details: [],
+      details_erreurs: [],
+    };
+
+    setProgression({ traites: 0, total: apercu.total });
+
     try {
-      const fd = new FormData();
-      fd.append('fichier', fichier);
-      const { data } = await api.post('/admin/import-etudiants', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      setRapport(data);
+      let hasMore = true;
+      let offset  = 0;
+
+      while (hasMore) {
+        const fd = new FormData();
+        fd.append('fichier', fichier);
+        fd.append('offset', String(offset));
+
+        const { data } = await api.post('/admin/import-etudiants', fd, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 0, // pas de timeout côté client — le serveur gère ses 5 minutes
+        });
+
+        // Accumuler les résultats de la tranche
+        rapportCumule.crees      += data.crees      || 0;
+        rapportCumule.mis_a_jour += data.mis_a_jour || 0;
+        rapportCumule.erreurs    += data.erreurs    || 0;
+        rapportCumule.details.push(...(data.details         || []));
+        rapportCumule.details_erreurs.push(...(data.details_erreurs || []));
+
+        // Mettre à jour la barre de progression
+        const traites = rapportCumule.crees + rapportCumule.mis_a_jour + rapportCumule.erreurs;
+        setProgression({ traites, total: data.total || apercu.total });
+
+        hasMore = data.hasMore;
+        offset  = data.nextOffset;
+      }
+
+      setRapport(rapportCumule);
       setEtape(ETAPES.RAPPORT);
     } catch (err) {
       setErreur(err.response?.data?.message || 'Erreur lors de l\'import.');
     } finally {
       setLoading(false);
+      setProgression(null);
     }
   };
 
@@ -127,6 +165,7 @@ export default function ImportEtudiants() {
     setApercu(null);
     setRapport(null);
     setErreur(null);
+    setProgression(null);
   };
 
   // ── Rendu ────────────────────────────────────────────────────────────────
@@ -308,6 +347,29 @@ export default function ImportEtudiants() {
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-4 rounded-xl">⚠ {erreur}</div>
               )}
 
+              {/* ── Barre de progression (visible pendant tout le traitement) ── */}
+              {loading && progression && (
+                <div className="card border-blue-200 bg-blue-50 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="animate-spin w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full flex-shrink-0" />
+                    <p className="font-semibold text-blue-800 text-sm flex-1">
+                      Traitement : {progression.traites}/{progression.total} étudiants
+                    </p>
+                    <span className="font-bold text-blue-700 text-sm tabular-nums">
+                      {Math.round((progression.traites / Math.max(progression.total, 1)) * 100)}%
+                    </span>
+                  </div>
+                  {/* Barre */}
+                  <div className="h-3 bg-blue-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-600 rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${Math.round((progression.traites / Math.max(progression.total, 1)) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-blue-600">⏳ Import en cours — ne fermez pas cette page</p>
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex gap-3">
                 <button
@@ -318,13 +380,17 @@ export default function ImportEtudiants() {
                   {loading ? (
                     <>
                       <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                      Import en cours...
+                      {progression
+                        ? `Tranche en cours... (${progression.traites}/${progression.total})`
+                        : 'Préparation...'}
                     </>
                   ) : (
                     <>📥 Valider et importer les {apercu.total} étudiants</>
                   )}
                 </button>
-                <button onClick={recommencer} className="btn-secondary">← Autre fichier</button>
+                <button onClick={recommencer} disabled={loading} className="btn-secondary">
+                  ← Autre fichier
+                </button>
               </div>
             </div>
           )}
