@@ -1,4 +1,8 @@
 const { execSync } = require('child_process');
+const app = require('./app');
+const { sequelize } = require('./models');
+
+const PORT = process.env.PORT || 5000;
 
 // Exécuter les migrations automatiquement au démarrage
 try {
@@ -7,10 +11,16 @@ try {
   console.log('✅ Migrations terminées');
 } catch (err) {
   console.error('❌ Erreur migrations:', err.message);
-}const app = require('./app');
-const { sequelize } = require('./models');
+}
 
-const PORT = process.env.PORT || 5000;
+// Exécuter les seeders
+try {
+  console.log('🔄 Exécution des seeders...');
+  execSync('npx sequelize-cli db:seed:all', { stdio: 'inherit' });
+  console.log('✅ Seeders terminés');
+} catch (err) {
+  console.log('ℹ️ Seeders déjà exécutés:', err.message);
+}
 
 async function startServer() {
   try {
