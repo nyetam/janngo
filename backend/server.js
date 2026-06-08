@@ -1,4 +1,13 @@
-const app = require('./app');
+const { execSync } = require('child_process');
+
+// Exécuter les migrations automatiquement au démarrage
+try {
+  console.log('🔄 Exécution des migrations...');
+  execSync('npx sequelize-cli db:migrate', { stdio: 'inherit' });
+  console.log('✅ Migrations terminées');
+} catch (err) {
+  console.error('❌ Erreur migrations:', err.message);
+}const app = require('./app');
 const { sequelize } = require('./models');
 
 const PORT = process.env.PORT || 5000;
