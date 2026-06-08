@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${API_URL}/api`,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -14,8 +16,6 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Ne pas rediriger si c'est la route de login elle-même qui retourne 401
-    // (identifiants incorrects) — le composant Login gère ce cas localement.
     const estRouteLogin = error.config?.url?.includes('/auth/login');
     if (error.response?.status === 401 && !estRouteLogin) {
       localStorage.removeItem('janngo_token');
