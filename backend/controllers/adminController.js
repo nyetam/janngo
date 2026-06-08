@@ -114,12 +114,18 @@ async function upsertEtudiant(etud) {
 // ─── Controller ───────────────────────────────────────────────────────────
 const adminController = {
   async importEtudiants(req, res) {
-    if (!req.file) return res.status(400).json({ message: 'Aucun fichier fourni' });
+    if (!req.file) {
+      console.error('[Import] Aucun fichier reçu — req.file est undefined');
+      return res.status(400).json({ message: 'Aucun fichier fourni' });
+    }
+
+    console.log(`[Import] Fichier reçu : ${req.file.originalname} (${req.file.size} octets, type: ${req.file.mimetype})`);
 
     let etudiants;
     try {
       etudiants = lireExcel(req.file.buffer);
     } catch (err) {
+      console.error('[Import] Erreur de lecture Excel :', err);
       return res.status(400).json({ message: `Erreur de lecture Excel : ${err.message}` });
     }
 
@@ -129,6 +135,7 @@ const adminController = {
       });
     }
 
+    console.log(`[Import] ${etudiants.length} étudiant(s) détecté(s) dans le fichier`);
     const rapport = { total: etudiants.length, crees: 0, mis_a_jour: 0, erreurs: 0, details: [], details_erreurs: [] };
 
     for (const etud of etudiants) {
@@ -138,6 +145,7 @@ const adminController = {
         else rapport.mis_a_jour++;
         rapport.details.push(result);
       } catch (err) {
+        console.error(`[Import] Erreur pour ${etud.matricule} :`, err.message);
         rapport.erreurs++;
         rapport.details_erreurs.push({
           matricule: etud.matricule,
@@ -147,6 +155,7 @@ const adminController = {
       }
     }
 
+    console.log(`[Import] Terminé — créés: ${rapport.crees}, MàJ: ${rapport.mis_a_jour}, erreurs: ${rapport.erreurs}`);
     res.json(rapport);
   },
 

@@ -5,9 +5,27 @@ const path = require('path');
 
 const app = express();
 
+// Origines autorisées : localhost (dev) + URL Render (prod) + FRONTEND_URL (var d'env)
+const ORIGINES_AUTORISEES = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://janngo-frontend.onrender.com',
+  process.env.FRONTEND_URL,
+].filter(Boolean); // supprimer les valeurs undefined/null
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Autoriser les requêtes sans origin (Postman, curl, appels serveur→serveur)
+    if (!origin || ORIGINES_AUTORISEES.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`[CORS] Origine refusée : ${origin}`);
+      callback(new Error(`Origine CORS non autorisée : ${origin}`));
+    }
+  },
   credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 }));
 
 app.use(express.json());

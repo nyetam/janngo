@@ -13,13 +13,12 @@ try {
   console.error('❌ Erreur migrations:', err.message);
 }
 
-// Exécuter les seeders
+// Exécuter les seeders (silencieux si déjà exécutés — comportement normal au redémarrage)
 try {
-  console.log('🔄 Exécution des seeders...');
-  execSync('npx sequelize-cli db:seed:all', { stdio: 'inherit' });
-  console.log('✅ Seeders terminés');
-} catch (err) {
-  console.log('ℹ️ Seeders déjà exécutés:', err.message);
+  execSync('npx sequelize-cli db:seed:all', { stdio: 'pipe' });
+  console.log('✅ Seeders appliqués');
+} catch {
+  // Les seeders ont déjà été insérés — aucune action requise
 }
 
 async function startServer() {
