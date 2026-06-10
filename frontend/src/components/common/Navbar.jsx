@@ -2,8 +2,9 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useEffect, useState } from 'react';
 import { fetchNotifications, marquerLu } from '../../store/notificationSlice';
 import { formatDateTime } from '../../utils/helpers';
+import { Menu, Bell, X } from 'lucide-react';
 
-export default function Navbar({ title }) {
+export default function Navbar({ title, onMenuClick }) {
   const dispatch = useDispatch();
   const { utilisateur } = useSelector((s) => s.auth);
   const { liste } = useSelector((s) => s.notifications);
@@ -19,17 +20,27 @@ export default function Navbar({ title }) {
   }, [utilisateur]);
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm">
-      <h1 className="text-xl font-semibold text-gray-800">{title}</h1>
+    <header className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 flex items-center justify-between shadow-sm flex-shrink-0">
+      <div className="flex items-center gap-3">
+        {/* Bouton hamburger mobile */}
+        <button
+          onClick={onMenuClick}
+          className="md:hidden p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+          aria-label="Ouvrir le menu"
+        >
+          <Menu size={22} />
+        </button>
+        <h1 className="text-lg md:text-xl font-semibold text-gray-800 truncate">{title}</h1>
+      </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 md:gap-4">
         {utilisateur?.role === 'ETUDIANT' && (
           <div className="relative">
             <button
               onClick={() => setShowNotifs(!showNotifs)}
               className="relative p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
             >
-              🔔
+              <Bell size={20} />
               {nonLues > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
                   {nonLues > 9 ? '9+' : nonLues}
@@ -38,10 +49,12 @@ export default function Navbar({ title }) {
             </button>
 
             {showNotifs && (
-              <div className="absolute right-0 top-12 w-96 bg-white rounded-xl shadow-xl border border-gray-200 z-50">
+              <div className="absolute right-0 top-12 w-80 md:w-96 bg-white rounded-xl shadow-xl border border-gray-200 z-50">
                 <div className="flex items-center justify-between p-4 border-b">
                   <h3 className="font-semibold text-gray-800">Notifications</h3>
-                  <button onClick={() => setShowNotifs(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+                  <button onClick={() => setShowNotifs(false)} className="text-gray-400 hover:text-gray-600">
+                    <X size={18} />
+                  </button>
                 </div>
                 <div className="max-h-80 overflow-y-auto">
                   {liste.length === 0 ? (
@@ -69,7 +82,7 @@ export default function Navbar({ title }) {
           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
             {utilisateur?.prenom?.[0]}{utilisateur?.nom?.[0]}
           </div>
-          <div className="hidden sm:block text-right">
+          <div className="hidden md:block text-right">
             <p className="text-sm font-medium text-gray-700 leading-tight">
               {utilisateur?.prenom} {utilisateur?.nom}
             </p>

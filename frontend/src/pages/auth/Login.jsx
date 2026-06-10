@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { login, clearError } from '../../store/authSlice';
+import { AlertCircle } from 'lucide-react';
 
 const MSG_ERREUR = 'Identifiant ou mot de passe incorrect. Veuillez réessayer.';
 
@@ -40,7 +41,6 @@ export default function Login() {
   };
 
   const handleSubmit = async (e) => {
-    // Peut être appelé via onClick (button) ou via onSubmit (form) — preventDefault dans les deux cas
     if (e && e.preventDefault) e.preventDefault();
     setError(null);
     dispatch(clearError());
@@ -72,11 +72,11 @@ export default function Login() {
           </div>
           <h1 className="text-3xl font-bold text-white tracking-wide">JANNGO</h1>
           <p className="text-blue-200 mt-1 text-sm">Plateforme de gestion des requêtes étudiantes</p>
-          <p className="text-blue-300 text-xs mt-0.5">Université de l'Information et des Technologies</p>
+          <p className="text-blue-300 text-xs mt-0.5">Institut Universitaire de Technologie de Douala</p>
         </div>
 
         {/* Formulaire */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+        <div className="bg-white rounded-2xl shadow-2xl p-6 md:p-8">
           <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">Connexion</h2>
 
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
@@ -110,10 +110,9 @@ export default function Login() {
               />
             </div>
 
-            {/* Message d'erreur visible */}
             {error && (
               <div className="bg-red-50 border border-red-300 text-red-700 text-sm p-3.5 rounded-xl flex items-start gap-2">
-                <span className="text-red-500 flex-shrink-0 mt-0.5">⚠</span>
+                <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
             )}
@@ -165,7 +164,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-blue-300 text-xs mt-6">
-          Les identifiants sont attribués par l'administration de l'UIT
+          Les identifiants sont attribués par l'administration de l'IUT
         </p>
       </div>
     </div>

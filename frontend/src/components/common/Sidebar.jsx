@@ -2,42 +2,51 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../store/authSlice';
 import { ROLE_LABELS } from '../../utils/constants';
+import {
+  Home, FilePlus, ClipboardList, CheckCircle, BarChart2,
+  GitBranch, Wrench, Settings, Download, LogOut, LayoutDashboard,
+} from 'lucide-react';
+
+const ICONS = {
+  Home, FilePlus, ClipboardList, CheckCircle, BarChart2,
+  GitBranch, Wrench, Settings, Download, LayoutDashboard,
+};
 
 const NAV_ITEMS = {
   ETUDIANT: [
-    { to: '/etudiant', label: 'Tableau de bord', icon: '🏠' },
-    { to: '/etudiant/nouvelle-requete', label: 'Nouvelle requête', icon: '➕' },
-    { to: '/etudiant/mes-requetes', label: 'Mes requêtes', icon: '📋' },
+    { to: '/etudiant', label: 'Tableau de bord', icon: 'Home' },
+    { to: '/etudiant/nouvelle-requete', label: 'Nouvelle requête', icon: 'FilePlus' },
+    { to: '/etudiant/mes-requetes', label: 'Mes requêtes', icon: 'ClipboardList' },
   ],
   SECRETAIRE: [
-    { to: '/secretariat', label: 'Tableau de bord', icon: '🏠' },
-    { to: '/secretariat/requetes', label: 'Gestion requêtes', icon: '📋' },
+    { to: '/secretariat', label: 'Tableau de bord', icon: 'Home' },
+    { to: '/secretariat/requetes', label: 'Gestion requêtes', icon: 'ClipboardList' },
   ],
   DIRECTEUR: [
-    { to: '/directeur', label: 'Tableau de bord', icon: '🏠' },
-    { to: '/directeur/validation', label: 'Validation', icon: '✅' },
-    { to: '/directeur/rapports', label: 'Rapports', icon: '📊' },
+    { to: '/directeur', label: 'Tableau de bord', icon: 'Home' },
+    { to: '/directeur/validation', label: 'Validation', icon: 'CheckCircle' },
+    { to: '/directeur/rapports', label: 'Rapports', icon: 'BarChart2' },
   ],
   DIR_ADJOINT: [
-    { to: '/directeur-adjoint', label: 'Tableau de bord', icon: '🏠' },
-    { to: '/directeur-adjoint/orientation', label: 'Orientation', icon: '🔄' },
+    { to: '/directeur-adjoint', label: 'Tableau de bord', icon: 'Home' },
+    { to: '/directeur-adjoint/orientation', label: 'Orientation', icon: 'GitBranch' },
   ],
   RESP_DEPT: [
-    { to: '/departement', label: 'Tableau de bord', icon: '🏠' },
-    { to: '/departement/traitement', label: 'Traitement', icon: '⚙️' },
+    { to: '/departement', label: 'Tableau de bord', icon: 'Home' },
+    { to: '/departement/traitement', label: 'Traitement', icon: 'Wrench' },
   ],
   SCOLARITE: [
-    { to: '/scolarite', label: 'Tableau de bord', icon: '🏠' },
-    { to: '/scolarite/traitement', label: 'Traitement', icon: '⚙️' },
+    { to: '/scolarite', label: 'Tableau de bord', icon: 'Home' },
+    { to: '/scolarite/traitement', label: 'Traitement', icon: 'Wrench' },
   ],
   CELLULE_INFO: [
-    { to: '/cellule-info', label: 'Tableau de bord', icon: '🏠' },
-    { to: '/cellule-info/modifications', label: 'Modifications', icon: '🔧' },
-    { to: '/cellule-info/import-etudiants', label: 'Import étudiants', icon: '📥' },
+    { to: '/cellule-info', label: 'Tableau de bord', icon: 'Home' },
+    { to: '/cellule-info/modifications', label: 'Modifications', icon: 'Settings' },
+    { to: '/cellule-info/import-etudiants', label: 'Import étudiants', icon: 'Download' },
   ],
 };
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { utilisateur } = useSelector((s) => s.auth);
@@ -50,7 +59,15 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-64 bg-gradient-to-b from-blue-800 to-blue-900 min-h-screen flex flex-col text-white shadow-xl flex-shrink-0">
+    <aside
+      className={`
+        fixed md:static inset-y-0 left-0 z-30
+        w-64 bg-gradient-to-b from-blue-800 to-blue-900
+        min-h-screen flex flex-col text-white shadow-xl flex-shrink-0
+        transform transition-transform duration-300 ease-in-out
+        ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}
+    >
       {/* Logo */}
       <div className="p-5 border-b border-blue-700">
         <div className="flex items-center gap-3">
@@ -67,7 +84,7 @@ export default function Sidebar() {
           </div>
           <div>
             <h1 className="font-bold text-lg leading-tight">Janngo</h1>
-            <p className="text-blue-300 text-xs">Plateforme UIT</p>
+            <p className="text-blue-300 text-xs">Plateforme IUT</p>
           </div>
         </div>
       </div>
@@ -87,23 +104,27 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-0.5">
-        {items.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to.split('/').length <= 2}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                isActive
-                  ? 'bg-white text-blue-800 font-semibold shadow'
-                  : 'text-blue-100 hover:bg-blue-700/60'
-              }`
-            }
-          >
-            <span className="text-base">{item.icon}</span>
-            {item.label}
-          </NavLink>
-        ))}
+        {items.map((item) => {
+          const Icon = ICONS[item.icon] || Home;
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to.split('/').length <= 2}
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                  isActive
+                    ? 'bg-white text-blue-800 font-semibold shadow'
+                    : 'text-blue-100 hover:bg-blue-700/60'
+                }`
+              }
+            >
+              <Icon size={17} className="flex-shrink-0" />
+              {item.label}
+            </NavLink>
+          );
+        })}
       </nav>
 
       {/* Déconnexion */}
@@ -112,7 +133,8 @@ export default function Sidebar() {
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-blue-200 hover:bg-blue-700/60 transition-colors"
         >
-          <span className="text-base">🚪</span> Déconnexion
+          <LogOut size={17} className="flex-shrink-0" />
+          Déconnexion
         </button>
       </div>
     </aside>
